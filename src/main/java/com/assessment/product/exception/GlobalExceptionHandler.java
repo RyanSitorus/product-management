@@ -23,7 +23,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleResourceNotFoundException(
             ResourceNotFoundException ex, HttpServletRequest request) {
-        log.warn("Resource not found: {} - Path: {}", ex.getMessage(), request.getRequestURI());
+        log.warn("Not found: {} ({})", ex.getMessage(), request.getRequestURI());
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .success(false)
                 .status(HttpStatus.NOT_FOUND.value())
@@ -38,7 +38,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ErrorResponse> handleBadRequestException(
             BadRequestException ex, HttpServletRequest request) {
-        log.warn("Bad request: {} - Path: {}", ex.getMessage(), request.getRequestURI());
+        log.warn("Bad request: {} ({})", ex.getMessage(), request.getRequestURI());
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .success(false)
                 .status(HttpStatus.BAD_REQUEST.value())
@@ -53,7 +53,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ErrorResponse> handleBadCredentialsException(
             BadCredentialsException ex, HttpServletRequest request) {
-        log.warn("Authentication failure: {} - Path: {}", ex.getMessage(), request.getRequestURI());
+        log.warn("Auth failed: {} ({})", ex.getMessage(), request.getRequestURI());
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .success(false)
                 .status(HttpStatus.UNAUTHORIZED.value())
@@ -68,7 +68,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDeniedException(
             AccessDeniedException ex, HttpServletRequest request) {
-        log.warn("Access denied: {} - Path: {}", ex.getMessage(), request.getRequestURI());
+        log.warn("Access denied: {} ({})", ex.getMessage(), request.getRequestURI());
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .success(false)
                 .status(HttpStatus.FORBIDDEN.value())
@@ -83,7 +83,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(
             MethodArgumentNotValidException ex, HttpServletRequest request) {
-        log.warn("Validation error on path {}: {}", request.getRequestURI(), ex.getMessage());
+        log.warn("Validation error on {}: {}", request.getRequestURI(), ex.getMessage());
         Map<String, String> errors = new HashMap<>();
         for (FieldError fieldError : ex.getBindingResult().getFieldErrors()) {
             errors.put(fieldError.getField(), fieldError.getDefaultMessage());
@@ -104,7 +104,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGlobalException(
             Exception ex, HttpServletRequest request) {
-        log.error("Unhandled exception occurred on path {}: ", request.getRequestURI(), ex);
+        log.error("Unhandled exception on {}: ", request.getRequestURI(), ex);
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .success(false)
                 .status(HttpStatus.INTERNAL_SERVER_ERROR.value())

@@ -2,6 +2,8 @@ package com.assessment.product.controller;
 
 import com.assessment.product.dto.common.ApiResponse;
 import com.assessment.product.dto.common.ErrorResponse;
+import com.assessment.product.dto.common.PagedResponse;
+import com.assessment.product.dto.product.ProductMetricsResponse;
 import com.assessment.product.dto.product.ProductRequest;
 import com.assessment.product.dto.product.ProductResponse;
 import com.assessment.product.service.ProductService;
@@ -13,14 +15,15 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+import java.security.Principal;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
-@Slf4j
 @RestController
 @RequestMapping("/api/v1/products")
 @RequiredArgsConstructor
@@ -49,9 +52,11 @@ public class ProductController {
             )
     })
     @PostMapping
-    public ResponseEntity<ApiResponse<ProductResponse>> createProduct(@Valid @RequestBody ProductRequest request) {
-        log.info("REST request to create product: {}", request.getName());
-        ProductResponse response = productService.createProduct(request);
+    public ResponseEntity<ApiResponse<ProductResponse>> createProduct(
+            @Valid @RequestBody ProductRequest request,
+            Principal principal) {
+        String username = principal != null ? principal.getName() : "system";
+        ProductResponse response = productService.createProduct(request, username);
         return new ResponseEntity<>(
                 ApiResponse.success("Product created successfully", response),
                 HttpStatus.CREATED
@@ -73,7 +78,6 @@ public class ProductController {
     })
     @GetMapping
     public ResponseEntity<ApiResponse<List<ProductResponse>>> getAllProducts() {
-        log.info("REST request to get all products");
         List<ProductResponse> products = productService.getAllProducts();
         return ResponseEntity.ok(
                 ApiResponse.success("Products retrieved successfully", products)
@@ -99,20 +103,38 @@ public class ProductController {
             )
     })
     @GetMapping("/search")
-    public ResponseEntity<ApiResponse<com.assessment.product.dto.common.PagedResponse<ProductResponse>>> searchProducts(
+    public ResponseEntity<ApiResponse<PagedResponse<ProductResponse>>> searchProducts(
             @RequestParam(required = false) String name,
-            @RequestParam(required = false) java.math.BigDecimal minPrice,
-            @RequestParam(required = false) java.math.BigDecimal maxPrice,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "id") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir) {
-        log.info("REST request to search products - name: {}, minPrice: {}, maxPrice: {}", name, minPrice, maxPrice);
-        com.assessment.product.dto.common.PagedResponse<ProductResponse> response = productService.searchProducts(
+        PagedResponse<ProductResponse> response = productService.searchProducts(
                 name, minPrice, maxPrice, page, size, sortBy, sortDir);
         return ResponseEntity.ok(
                 ApiResponse.success("Products retrieved successfully", response)
         );
+    }
+
+    @Operation(summary = "Get product metrics", description = "Asynchronously calculates inventory metrics.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Product metrics calculated successfully",
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class))
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            )
+    })
+    @GetMapping("/metrics")
+    public CompletableFuture<ResponseEntity<ApiResponse<ProductMetricsResponse>>> getMetrics() {
+        return productService.calculateMetricsAsync()
+                .thenApply(metrics -> ResponseEntity.ok(ApiResponse.success("Metrics calculated successfully", metrics)));
     }
 
     @Operation(summary = "Get product by ID", description = "Retrieves a single product by its integer ID.")
@@ -135,7 +157,6 @@ public class ProductController {
     })
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<ProductResponse>> getProductById(@PathVariable int id) {
-        log.info("REST request to get product with ID: {}", id);
         ProductResponse response = productService.getProductById(id);
         return ResponseEntity.ok(
                 ApiResponse.success("Product retrieved successfully", response)
@@ -168,9 +189,10 @@ public class ProductController {
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<ProductResponse>> updateProduct(
             @PathVariable int id,
-            @Valid @RequestBody ProductRequest request) {
-        log.info("REST request to update product with ID: {}", id);
-        ProductResponse response = productService.updateProduct(id, request);
+            @Valid @RequestBody ProductRequest request,
+            Principal principal) {
+        String username = principal != null ? principal.getName() : "system";
+        ProductResponse response = productService.updateProduct(id, request, username);
         return ResponseEntity.ok(
                 ApiResponse.success("Product updated successfully", response)
         );
@@ -195,9 +217,11 @@ public class ProductController {
             )
     })
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteProduct(@PathVariable int id) {
-        log.info("REST request to delete product with ID: {}", id);
-        productService.deleteProduct(id);
+    public ResponseEntity<ApiResponse<Void>> deleteProduct(
+            @PathVariable int id,
+            Principal principal) {
+        String username = principal != null ? principal.getName() : "system";
+        productService.deleteProduct(id, username);
         return ResponseEntity.ok(
                 ApiResponse.success("Product deleted successfully", null)
         );

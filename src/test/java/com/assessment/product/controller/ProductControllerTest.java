@@ -80,7 +80,7 @@ class ProductControllerTest {
     @Test
     @DisplayName("POST /api/v1/products - Should create product successfully")
     void createProduct_Success() throws Exception {
-        when(productService.createProduct(any(ProductRequest.class))).thenReturn(sampleResponse);
+        when(productService.createProduct(any(ProductRequest.class), anyString())).thenReturn(sampleResponse);
 
         mockMvc.perform(post("/api/v1/products")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -155,7 +155,7 @@ class ProductControllerTest {
                 .createdAt(new Date())
                 .build();
 
-        when(productService.updateProduct(eq(1), any(ProductRequest.class))).thenReturn(updatedResponse);
+        when(productService.updateProduct(eq(1), any(ProductRequest.class), anyString())).thenReturn(updatedResponse);
 
         mockMvc.perform(put("/api/v1/products/1")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -168,7 +168,7 @@ class ProductControllerTest {
     @Test
     @DisplayName("DELETE /api/v1/products/{id} - Should delete product successfully")
     void deleteProduct_Success() throws Exception {
-        doNothing().when(productService).deleteProduct(1);
+        doNothing().when(productService).deleteProduct(eq(1), anyString());
 
         mockMvc.perform(delete("/api/v1/products/1"))
                 .andExpect(status().isOk())
@@ -214,5 +214,30 @@ class ProductControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.message").value("Minimum price cannot be greater than maximum price"));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/products/metrics - Should return aggregated metrics")
+    void getMetrics_Success() throws Exception {
+        com.assessment.product.dto.product.ProductMetricsResponse metrics =
+                com.assessment.product.dto.product.ProductMetricsResponse.builder()
+                        .totalProducts(5)
+                        .averagePrice(new BigDecimal("150.00"))
+                        .minPrice(new BigDecimal("20.00"))
+                        .maxPrice(new BigDecimal("500.00"))
+                        .totalValuation(new BigDecimal("750.00"))
+                        .build();
+
+        when(productService.calculateMetricsAsync())
+                .thenReturn(java.util.concurrent.CompletableFuture.completedFuture(metrics));
+
+        org.springframework.test.web.servlet.MvcResult mvcResult = mockMvc.perform(get("/api/v1/products/metrics"))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+
+        mockMvc.perform(asyncDispatch(mvcResult))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.totalProducts").value(5));
     }
 }

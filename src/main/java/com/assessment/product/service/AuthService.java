@@ -31,15 +31,15 @@ public class AuthService {
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
-        log.info("Attempting to register user with username: {}", request.getUsername());
+        log.info("Registering user: {}", request.getUsername());
 
         if (userRepository.existsByUsername(request.getUsername())) {
-            log.warn("Registration failed: Username '{}' already exists", request.getUsername());
+            log.warn("Registration failed: username '{}' already taken", request.getUsername());
             throw new BadRequestException("Username '" + request.getUsername() + "' is already taken");
         }
 
         if (userRepository.existsByEmail(request.getEmail())) {
-            log.warn("Registration failed: Email '{}' already exists", request.getEmail());
+            log.warn("Registration failed: email '{}' already in use", request.getEmail());
             throw new BadRequestException("Email '" + request.getEmail() + "' is already in use");
         }
 
@@ -53,7 +53,6 @@ public class AuthService {
                 .build();
 
         User savedUser = userRepository.save(user);
-        log.info("User registered successfully with ID: {}", savedUser.getId());
 
         String token = tokenProvider.generateTokenFromUsername(
                 savedUser.getUsername(),
@@ -75,8 +74,6 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest request) {
-        log.info("Attempting login for username: {}", request.getUsername());
-
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         request.getUsername(),
@@ -94,7 +91,7 @@ public class AuthService {
                 .map(Object::toString)
                 .orElse(Role.ROLE_USER.name());
 
-        log.info("User '{}' logged in successfully", request.getUsername());
+        log.info("User logged in: {}", request.getUsername());
 
         return AuthResponse.builder()
                 .token(token)

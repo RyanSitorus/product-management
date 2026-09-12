@@ -1,10 +1,11 @@
 package com.assessment.product.service;
 
+import com.assessment.product.dto.common.PagedResponse;
+import com.assessment.product.dto.product.ProductMetricsResponse;
 import com.assessment.product.dto.product.ProductRequest;
 import com.assessment.product.dto.product.ProductResponse;
-import com.assessment.product.entity.Product;
-import com.assessment.product.exception.ResourceNotFoundException;
-import com.assessment.product.repository.ProductRepository;
+import com.assessment.product.service.command.ProductCommandService;
+import com.assessment.product.service.query.ProductQueryService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,28 +18,29 @@ import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
-import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class ProductServiceTest {
 
     @Mock
-    private ProductRepository productRepository;
+    private ProductCommandService commandService;
+
+    @Mock
+    private ProductQueryService queryService;
 
     @InjectMocks
     private ProductService productService;
 
-    private Product sampleProduct;
+    private ProductResponse sampleResponse;
     private ProductRequest sampleRequest;
 
     @BeforeEach
     void setUp() {
-        sampleProduct = Product.builder()
+        sampleResponse = ProductResponse.builder()
                 .id(1)
                 .name("Smartphone")
                 .description("Flagship mobile phone")
@@ -54,114 +56,99 @@ class ProductServiceTest {
     }
 
     @Test
-    @DisplayName("createProduct() - Success")
-    void createProduct_Success() {
-        when(productRepository.save(any(Product.class))).thenReturn(sampleProduct);
+    @DisplayName("createProduct() - Delegates to commandService")
+    void createProduct_Delegates() {
+        when(commandService.createProduct(eq(sampleRequest), anyString())).thenReturn(sampleResponse);
 
         ProductResponse response = productService.createProduct(sampleRequest);
 
         assertThat(response).isNotNull();
         assertThat(response.getId()).isEqualTo(1);
-        assertThat(response.getName()).isEqualTo("Smartphone");
-        assertThat(response.getPrice()).isEqualByComparingTo("999.00");
-
-        verify(productRepository).save(any(Product.class));
+        verify(commandService).createProduct(eq(sampleRequest), anyString());
     }
 
     @Test
-    @DisplayName("getProductById() - Success")
-    void getProductById_Success() {
-        when(productRepository.findById(1)).thenReturn(Optional.of(sampleProduct));
+    @DisplayName("getProductById() - Delegates to queryService")
+    void getProductById_Delegates() {
+        when(queryService.getProductById(1)).thenReturn(sampleResponse);
 
         ProductResponse response = productService.getProductById(1);
 
         assertThat(response).isNotNull();
-        assertThat(response.getId()).isEqualTo(1);
-        assertThat(response.getName()).isEqualTo("Smartphone");
+        verify(queryService).getProductById(1);
     }
 
     @Test
-    @DisplayName("getProductById() - Throws ResourceNotFoundException when not found")
-    void getProductById_NotFound() {
-        when(productRepository.findById(99)).thenReturn(Optional.empty());
-
-        assertThrows(ResourceNotFoundException.class, () -> productService.getProductById(99));
-    }
-
-    @Test
-    @DisplayName("getAllProducts() - Success")
-    void getAllProducts_Success() {
-        when(productRepository.findAll()).thenReturn(Collections.singletonList(sampleProduct));
+    @DisplayName("getAllProducts() - Delegates to queryService")
+    void getAllProducts_Delegates() {
+        when(queryService.getAllProducts()).thenReturn(Collections.singletonList(sampleResponse));
 
         List<ProductResponse> responses = productService.getAllProducts();
 
-        assertThat(responses).isNotEmpty();
-        assertThat(responses.size()).isEqualTo(1);
-        assertThat(responses.get(0).getName()).isEqualTo("Smartphone");
+        assertThat(responses).hasSize(1);
+        verify(queryService).getAllProducts();
     }
 
     @Test
-    @DisplayName("updateProduct() - Success")
-    void updateProduct_Success() {
-        when(productRepository.findById(1)).thenReturn(Optional.of(sampleProduct));
-        when(productRepository.save(any(Product.class))).thenReturn(sampleProduct);
-
-        ProductRequest updateRequest = ProductRequest.builder()
-                .name("Updated Smartphone")
-                .description("Updated specs")
-                .price(new BigDecimal("1099.00"))
+    @DisplayName("searchProducts() - Delegates to queryService")
+    void searchProducts_Delegates() {
+        PagedResponse<ProductResponse> pagedResponse = PagedResponse.<ProductResponse>builder()
+                .content(Collections.singletonList(sampleResponse))
+                .pageNumber(0)
+                .pageSize(10)
+                .totalElements(1L)
+                .totalPages(1)
+                .last(true)
                 .build();
 
-        ProductResponse response = productService.updateProduct(1, updateRequest);
+        when(queryService.searchProducts("Smart", BigDecimal.ZERO, new BigDecimal("1000"), 0, 10, "id", "desc"))
+                .thenReturn(pagedResponse);
 
-        assertThat(response).isNotNull();
-        verify(productRepository).save(any(Product.class));
-    }
-
-    @Test
-    @DisplayName("deleteProduct() - Success")
-    void deleteProduct_Success() {
-        when(productRepository.findById(1)).thenReturn(Optional.of(sampleProduct));
-        doNothing().when(productRepository).delete(sampleProduct);
-
-        productService.deleteProduct(1);
-
-        verify(productRepository).delete(sampleProduct);
-    }
-
-    @Test
-    @DisplayName("deleteProduct() - Throws ResourceNotFoundException when not found")
-    void deleteProduct_NotFound() {
-        when(productRepository.findById(99)).thenReturn(Optional.empty());
-
-        assertThrows(ResourceNotFoundException.class, () -> productService.deleteProduct(99));
-        verify(productRepository, never()).delete(any(Product.class));
-    }
-
-    @Test
-    @DisplayName("searchProducts() - Success with filters and pagination")
-    void searchProducts_Success() {
-        org.springframework.data.domain.Page<Product> page =
-                new org.springframework.data.domain.PageImpl<>(Collections.singletonList(sampleProduct));
-
-        when(productRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class),
-                any(org.springframework.data.domain.Pageable.class))).thenReturn(page);
-
-        com.assessment.product.dto.common.PagedResponse<ProductResponse> result =
-                productService.searchProducts("Smart", new BigDecimal("500"), new BigDecimal("1500"), 0, 10, "id", "desc");
+        PagedResponse<ProductResponse> result = productService.searchProducts(
+                "Smart", BigDecimal.ZERO, new BigDecimal("1000"), 0, 10, "id", "desc");
 
         assertThat(result).isNotNull();
         assertThat(result.getContent()).hasSize(1);
-        assertThat(result.getTotalElements()).isEqualTo(1);
+        verify(queryService).searchProducts("Smart", BigDecimal.ZERO, new BigDecimal("1000"), 0, 10, "id", "desc");
     }
 
     @Test
-    @DisplayName("searchProducts() - Throws BadRequestException when minPrice > maxPrice")
-    void searchProducts_ThrowsBadRequest_WhenInvalidPriceRange() {
-        assertThrows(com.assessment.product.exception.BadRequestException.class, () ->
-                productService.searchProducts(null, new BigDecimal("1000"), new BigDecimal("500"), 0, 10, "id", "desc"));
+    @DisplayName("updateProduct() - Delegates to commandService")
+    void updateProduct_Delegates() {
+        when(commandService.updateProduct(eq(1), eq(sampleRequest), anyString())).thenReturn(sampleResponse);
 
-        verify(productRepository, never()).findAll(any(org.springframework.data.jpa.domain.Specification.class),
-                any(org.springframework.data.domain.Pageable.class));
+        ProductResponse response = productService.updateProduct(1, sampleRequest);
+
+        assertThat(response).isNotNull();
+        verify(commandService).updateProduct(eq(1), eq(sampleRequest), anyString());
+    }
+
+    @Test
+    @DisplayName("deleteProduct() - Delegates to commandService")
+    void deleteProduct_Delegates() {
+        doNothing().when(commandService).deleteProduct(eq(1), anyString());
+
+        productService.deleteProduct(1);
+
+        verify(commandService).deleteProduct(eq(1), anyString());
+    }
+
+    @Test
+    @DisplayName("calculateMetricsAsync() - Delegates to queryService")
+    void calculateMetricsAsync_Delegates() throws Exception {
+        ProductMetricsResponse metrics = ProductMetricsResponse.builder()
+                .totalProducts(1)
+                .averagePrice(new BigDecimal("999.00"))
+                .totalValuation(new BigDecimal("999.00"))
+                .build();
+
+        when(queryService.calculateMetricsAsync()).thenReturn(CompletableFuture.completedFuture(metrics));
+
+        CompletableFuture<ProductMetricsResponse> future = productService.calculateMetricsAsync();
+        ProductMetricsResponse result = future.get();
+
+        assertThat(result).isNotNull();
+        assertThat(result.getTotalProducts()).isEqualTo(1);
+        verify(queryService).calculateMetricsAsync();
     }
 }

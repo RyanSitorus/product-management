@@ -1,69 +1,51 @@
 package com.assessment.product.service;
 
 import com.assessment.product.dto.common.PagedResponse;
+import com.assessment.product.dto.product.ProductMetricsResponse;
 import com.assessment.product.dto.product.ProductRequest;
 import com.assessment.product.dto.product.ProductResponse;
-import com.assessment.product.entity.Product;
-import com.assessment.product.exception.BadRequestException;
-import com.assessment.product.exception.ResourceNotFoundException;
-import com.assessment.product.repository.ProductRepository;
-import com.assessment.product.repository.ProductSpecification;
+import com.assessment.product.service.command.ProductCommandService;
+import com.assessment.product.service.query.ProductQueryService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.concurrent.CompletableFuture;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ProductService {
 
-    private final ProductRepository productRepository;
+    private final ProductCommandService commandService;
+    private final ProductQueryService queryService;
 
-    @Transactional
+    private String getCurrentUsername() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.isAuthenticated() && !"anonymousUser".equals(authentication.getName())) {
+            return authentication.getName();
+        }
+        return "system";
+    }
+
     public ProductResponse createProduct(ProductRequest request) {
-        log.info("Creating new product with name: {}", request.getName());
-
-        Product product = Product.builder()
-                .name(request.getName())
-                .description(request.getDescription())
-                .price(request.getPrice())
-                .build();
-
-        Product savedProduct = productRepository.save(product);
-        log.info("Product created with ID: {}", savedProduct.getId());
-
-        return ProductResponse.fromEntity(savedProduct);
+        return commandService.createProduct(request, getCurrentUsername());
     }
 
-    @Transactional(readOnly = true)
+    public ProductResponse createProduct(ProductRequest request, String initiatedBy) {
+        return commandService.createProduct(request, initiatedBy);
+    }
+
     public ProductResponse getProductById(int id) {
-        log.info("Fetching product with ID: {}", id);
-
-        Product product = productRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Product not found with ID: " + id));
-
-        return ProductResponse.fromEntity(product);
+        return queryService.getProductById(id);
     }
 
-    @Transactional(readOnly = true)
     public List<ProductResponse> getAllProducts() {
-        log.info("Fetching all products");
-        return productRepository.findAll().stream()
-                .map(ProductResponse::fromEntity)
-                .collect(Collectors.toList());
+        return queryService.getAllProducts();
     }
 
-    @Transactional(readOnly = true)
     public PagedResponse<ProductResponse> searchProducts(
             String name,
             BigDecimal minPrice,
@@ -72,48 +54,26 @@ public class ProductService {
             int size,
             String sortBy,
             String sortDir) {
-        log.info("Searching products - name: {}, minPrice: {}, maxPrice: {}, page: {}, size: {}",
-                name, minPrice, maxPrice, page, size);
-
-        if (minPrice != null && maxPrice != null && minPrice.compareTo(maxPrice) > 0) {
-            throw new BadRequestException("Minimum price cannot be greater than maximum price");
-        }
-
-        Sort sort = "asc".equalsIgnoreCase(sortDir) ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
-        Pageable pageable = PageRequest.of(page, size, sort);
-
-        Specification<Product> spec = ProductSpecification.filter(name, minPrice, maxPrice);
-        Page<Product> productPage = productRepository.findAll(spec, pageable);
-
-        Page<ProductResponse> responsePage = productPage.map(ProductResponse::fromEntity);
-        return PagedResponse.fromPage(responsePage);
+        return queryService.searchProducts(name, minPrice, maxPrice, page, size, sortBy, sortDir);
     }
 
-    @Transactional
     public ProductResponse updateProduct(int id, ProductRequest request) {
-        log.info("Updating product with ID: {}", id);
-
-        Product product = productRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Product not found with ID: " + id));
-
-        product.setName(request.getName());
-        product.setDescription(request.getDescription());
-        product.setPrice(request.getPrice());
-
-        Product updatedProduct = productRepository.save(product);
-        log.info("Product updated successfully with ID: {}", updatedProduct.getId());
-
-        return ProductResponse.fromEntity(updatedProduct);
+        return commandService.updateProduct(id, request, getCurrentUsername());
     }
 
-    @Transactional
+    public ProductResponse updateProduct(int id, ProductRequest request, String initiatedBy) {
+        return commandService.updateProduct(id, request, initiatedBy);
+    }
+
     public void deleteProduct(int id) {
-        log.info("Deleting product with ID: {}", id);
+        commandService.deleteProduct(id, getCurrentUsername());
+    }
 
-        Product product = productRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Product not found with ID: " + id));
+    public void deleteProduct(int id, String initiatedBy) {
+        commandService.deleteProduct(id, initiatedBy);
+    }
 
-        productRepository.delete(product);
-        log.info("Product deleted successfully with ID: {}", id);
+    public CompletableFuture<ProductMetricsResponse> calculateMetricsAsync() {
+        return queryService.calculateMetricsAsync();
     }
 }
