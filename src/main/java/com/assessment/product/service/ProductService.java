@@ -1,15 +1,24 @@
 package com.assessment.product.service;
 
+import com.assessment.product.dto.common.PagedResponse;
 import com.assessment.product.dto.product.ProductRequest;
 import com.assessment.product.dto.product.ProductResponse;
 import com.assessment.product.entity.Product;
+import com.assessment.product.exception.BadRequestException;
 import com.assessment.product.exception.ResourceNotFoundException;
 import com.assessment.product.repository.ProductRepository;
+import com.assessment.product.repository.ProductSpecification;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -52,6 +61,32 @@ public class ProductService {
         return productRepository.findAll().stream()
                 .map(ProductResponse::fromEntity)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public PagedResponse<ProductResponse> searchProducts(
+            String name,
+            BigDecimal minPrice,
+            BigDecimal maxPrice,
+            int page,
+            int size,
+            String sortBy,
+            String sortDir) {
+        log.info("Searching products - name: {}, minPrice: {}, maxPrice: {}, page: {}, size: {}",
+                name, minPrice, maxPrice, page, size);
+
+        if (minPrice != null && maxPrice != null && minPrice.compareTo(maxPrice) > 0) {
+            throw new BadRequestException("Minimum price cannot be greater than maximum price");
+        }
+
+        Sort sort = "asc".equalsIgnoreCase(sortDir) ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        Specification<Product> spec = ProductSpecification.filter(name, minPrice, maxPrice);
+        Page<Product> productPage = productRepository.findAll(spec, pageable);
+
+        Page<ProductResponse> responsePage = productPage.map(ProductResponse::fromEntity);
+        return PagedResponse.fromPage(responsePage);
     }
 
     @Transactional

@@ -175,4 +175,44 @@ class ProductControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.message").value("Product deleted successfully"));
     }
+
+    @Test
+    @DisplayName("GET /api/v1/products/search - Should search products with filters")
+    void searchProducts_Success() throws Exception {
+        com.assessment.product.dto.common.PagedResponse<ProductResponse> pagedResponse =
+                com.assessment.product.dto.common.PagedResponse.<ProductResponse>builder()
+                        .content(Collections.singletonList(sampleResponse))
+                        .pageNumber(0)
+                        .pageSize(10)
+                        .totalElements(1L)
+                        .totalPages(1)
+                        .last(true)
+                        .build();
+
+        when(productService.searchProducts(eq("Laptop"), any(), any(), eq(0), eq(10), eq("id"), eq("desc")))
+                .thenReturn(pagedResponse);
+
+        mockMvc.perform(get("/api/v1/products/search")
+                        .param("name", "Laptop")
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.content").isArray())
+                .andExpect(jsonPath("$.data.totalElements").value(1));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/products/search - Should return 400 when minPrice > maxPrice")
+    void searchProducts_InvalidPriceRange() throws Exception {
+        when(productService.searchProducts(any(), any(), any(), anyInt(), anyInt(), anyString(), anyString()))
+                .thenThrow(new com.assessment.product.exception.BadRequestException("Minimum price cannot be greater than maximum price"));
+
+        mockMvc.perform(get("/api/v1/products/search")
+                        .param("minPrice", "1000")
+                        .param("maxPrice", "500"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Minimum price cannot be greater than maximum price"));
+    }
 }

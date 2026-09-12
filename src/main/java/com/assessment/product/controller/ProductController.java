@@ -80,6 +80,41 @@ public class ProductController {
         );
     }
 
+    @Operation(summary = "Search and filter products", description = "Searches products by name and/or price range with pagination and sorting.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Products retrieved successfully",
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class))
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid filter parameters",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            )
+    })
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<com.assessment.product.dto.common.PagedResponse<ProductResponse>>> searchProducts(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) java.math.BigDecimal minPrice,
+            @RequestParam(required = false) java.math.BigDecimal maxPrice,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
+        log.info("REST request to search products - name: {}, minPrice: {}, maxPrice: {}", name, minPrice, maxPrice);
+        com.assessment.product.dto.common.PagedResponse<ProductResponse> response = productService.searchProducts(
+                name, minPrice, maxPrice, page, size, sortBy, sortDir);
+        return ResponseEntity.ok(
+                ApiResponse.success("Products retrieved successfully", response)
+        );
+    }
+
     @Operation(summary = "Get product by ID", description = "Retrieves a single product by its integer ID.")
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(

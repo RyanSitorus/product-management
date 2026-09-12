@@ -137,4 +137,31 @@ class ProductServiceTest {
         assertThrows(ResourceNotFoundException.class, () -> productService.deleteProduct(99));
         verify(productRepository, never()).delete(any(Product.class));
     }
+
+    @Test
+    @DisplayName("searchProducts() - Success with filters and pagination")
+    void searchProducts_Success() {
+        org.springframework.data.domain.Page<Product> page =
+                new org.springframework.data.domain.PageImpl<>(Collections.singletonList(sampleProduct));
+
+        when(productRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class),
+                any(org.springframework.data.domain.Pageable.class))).thenReturn(page);
+
+        com.assessment.product.dto.common.PagedResponse<ProductResponse> result =
+                productService.searchProducts("Smart", new BigDecimal("500"), new BigDecimal("1500"), 0, 10, "id", "desc");
+
+        assertThat(result).isNotNull();
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getTotalElements()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("searchProducts() - Throws BadRequestException when minPrice > maxPrice")
+    void searchProducts_ThrowsBadRequest_WhenInvalidPriceRange() {
+        assertThrows(com.assessment.product.exception.BadRequestException.class, () ->
+                productService.searchProducts(null, new BigDecimal("1000"), new BigDecimal("500"), 0, 10, "id", "desc"));
+
+        verify(productRepository, never()).findAll(any(org.springframework.data.jpa.domain.Specification.class),
+                any(org.springframework.data.domain.Pageable.class));
+    }
 }
