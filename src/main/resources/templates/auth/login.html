@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout/main :: head(~{::title})}">
+  <title>Login - Product Management</title>
+</head>
+<body>
+
+  <div class="container auth-container">
+    <div class="card auth-card shadow-sm">
+      <div class="card-body p-4">
+        <h4 class="card-title text-center mb-3">Login</h4>
+
+        <div id="loginAlert" class="alert alert-danger d-none py-2 small" role="alert"></div>
+
+        <form id="loginForm" onsubmit="handleLogin(event)">
+          <div class="mb-3">
+            <label for="username" class="form-label">Username</label>
+            <input type="text" class="form-control" id="username" required autofocus>
+          </div>
+
+          <div class="mb-3">
+            <label for="password" class="form-label">Password</label>
+            <input type="password" class="form-control" id="password" required>
+          </div>
+
+          <button type="submit" id="btnLogin" class="btn btn-primary w-100 mb-3">Sign In</button>
+        </form>
+
+        <div class="text-center small">
+          <span>Don't have an account? </span>
+          <a th:href="@{/register}">Register here</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div th:replace="~{layout/main :: scripts}"></div>
+
+  <script>
+    async function handleLogin(e) {
+      e.preventDefault();
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      const alertBox = document.getElementById('loginAlert');
+      const btn = document.getElementById('btnLogin');
+
+      alertBox.classList.add('d-none');
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/v1/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const result = await res.json();
+
+        if (res.ok && result.success) {
+          setSession(result.data.token, result.data.username, result.data.role);
+          window.location.href = '/products';
+        } else {
+          alertBox.textContent = result.message || 'Invalid username or password';
+          alertBox.classList.remove('d-none');
+        }
+      } catch (err) {
+        alertBox.textContent = 'Server error. Please try again.';
+        alertBox.classList.remove('d-none');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (getToken()) {
+        window.location.href = '/products';
+      }
+    });
+  </script>
+</body>
+</html>

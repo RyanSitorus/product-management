@@ -1,7 +1,6 @@
 package com.assessment.product.service;
 
 import com.assessment.product.dto.common.PagedResponse;
-import com.assessment.product.dto.product.ProductMetricsResponse;
 import com.assessment.product.dto.product.ProductRequest;
 import com.assessment.product.dto.product.ProductResponse;
 import com.assessment.product.service.command.ProductCommandService;
@@ -18,7 +17,6 @@ import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
@@ -131,24 +129,5 @@ class ProductServiceTest {
         productService.deleteProduct(1);
 
         verify(commandService).deleteProduct(eq(1), anyString());
-    }
-
-    @Test
-    @DisplayName("calculateMetricsAsync() - Delegates to queryService")
-    void calculateMetricsAsync_Delegates() throws Exception {
-        ProductMetricsResponse metrics = ProductMetricsResponse.builder()
-                .totalProducts(1)
-                .averagePrice(new BigDecimal("999.00"))
-                .totalValuation(new BigDecimal("999.00"))
-                .build();
-
-        when(queryService.calculateMetricsAsync()).thenReturn(CompletableFuture.completedFuture(metrics));
-
-        CompletableFuture<ProductMetricsResponse> future = productService.calculateMetricsAsync();
-        ProductMetricsResponse result = future.get();
-
-        assertThat(result).isNotNull();
-        assertThat(result.getTotalProducts()).isEqualTo(1);
-        verify(queryService).calculateMetricsAsync();
     }
 }

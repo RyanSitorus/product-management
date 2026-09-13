@@ -215,29 +215,4 @@ class ProductControllerTest {
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.message").value("Minimum price cannot be greater than maximum price"));
     }
-
-    @Test
-    @DisplayName("GET /api/v1/products/metrics - Should return aggregated metrics")
-    void getMetrics_Success() throws Exception {
-        com.assessment.product.dto.product.ProductMetricsResponse metrics =
-                com.assessment.product.dto.product.ProductMetricsResponse.builder()
-                        .totalProducts(5)
-                        .averagePrice(new BigDecimal("150.00"))
-                        .minPrice(new BigDecimal("20.00"))
-                        .maxPrice(new BigDecimal("500.00"))
-                        .totalValuation(new BigDecimal("750.00"))
-                        .build();
-
-        when(productService.calculateMetricsAsync())
-                .thenReturn(java.util.concurrent.CompletableFuture.completedFuture(metrics));
-
-        org.springframework.test.web.servlet.MvcResult mvcResult = mockMvc.perform(get("/api/v1/products/metrics"))
-                .andExpect(request().asyncStarted())
-                .andReturn();
-
-        mockMvc.perform(asyncDispatch(mvcResult))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.totalProducts").value(5));
-    }
 }

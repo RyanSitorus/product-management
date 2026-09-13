@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout/main :: head(~{::title})}">
+  <title>Register - Product Management</title>
+</head>
+<body>
+
+  <div class="container auth-container">
+    <div class="card auth-card shadow-sm">
+      <div class="card-body p-4">
+        <h4 class="card-title text-center mb-3">Register</h4>
+
+        <div id="registerAlert" class="alert alert-danger d-none py-2 small" role="alert"></div>
+
+        <form id="registerForm" onsubmit="handleRegister(event)">
+          <div class="mb-3">
+            <label for="username" class="form-label">Username</label>
+            <input type="text" class="form-control" id="username" required minlength="3" autofocus>
+          </div>
+
+          <div class="mb-3">
+            <label for="email" class="form-label">Email</label>
+            <input type="email" class="form-control" id="email" required>
+          </div>
+
+          <div class="mb-3">
+            <label for="password" class="form-label">Password</label>
+            <input type="password" class="form-control" id="password" required minlength="6">
+          </div>
+
+          <div class="mb-3">
+            <label for="role" class="form-label">Role</label>
+            <select class="form-select" id="role">
+              <option value="ROLE_USER" selected>USER</option>
+              <option value="ROLE_ADMIN">ADMIN</option>
+            </select>
+          </div>
+
+          <button type="submit" id="btnRegister" class="btn btn-primary w-100 mb-3">Register</button>
+        </form>
+
+        <div class="text-center small">
+          <span>Already have an account? </span>
+          <a th:href="@{/login}">Login here</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div th:replace="~{layout/main :: scripts}"></div>
+
+  <script>
+    async function handleRegister(e) {
+      e.preventDefault();
+      const username = document.getElementById('username').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const role = document.getElementById('role').value;
+      const alertBox = document.getElementById('registerAlert');
+      const btn = document.getElementById('btnRegister');
+
+      alertBox.classList.add('d-none');
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/v1/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, email, password, role })
+        });
+        const result = await res.json();
+
+        if (res.ok && result.success) {
+          setSession(result.data.token, result.data.username, result.data.role);
+          window.location.href = '/products';
+        } else {
+          alertBox.textContent = result.message || 'Registration failed';
+          alertBox.classList.remove('d-none');
+        }
+      } catch (err) {
+        alertBox.textContent = 'Server error. Please try again.';
+        alertBox.classList.remove('d-none');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

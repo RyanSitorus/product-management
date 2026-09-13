@@ -1,7 +1,6 @@
 package com.assessment.product.service.query;
 
 import com.assessment.product.dto.common.PagedResponse;
-import com.assessment.product.dto.product.ProductMetricsResponse;
 import com.assessment.product.dto.product.ProductResponse;
 import com.assessment.product.entity.Product;
 import com.assessment.product.exception.BadRequestException;
@@ -21,7 +20,6 @@ import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -107,34 +105,5 @@ class ProductQueryServiceTest {
     void searchProducts_InvalidPrice() {
         assertThrows(BadRequestException.class, () ->
                 queryService.searchProducts(null, new BigDecimal("500"), new BigDecimal("100"), 0, 10, "id", "desc"));
-    }
-
-    @Test
-    @DisplayName("calculateMetricsAsync() - Success with products")
-    void calculateMetricsAsync_Success() throws Exception {
-        when(productRepository.findAll()).thenReturn(Arrays.asList(product1, product2));
-
-        CompletableFuture<ProductMetricsResponse> future = queryService.calculateMetricsAsync();
-        ProductMetricsResponse metrics = future.get();
-
-        assertThat(metrics).isNotNull();
-        assertThat(metrics.getTotalProducts()).isEqualTo(2);
-        assertThat(metrics.getTotalValuation()).isEqualByComparingTo("350.00");
-        assertThat(metrics.getAveragePrice()).isEqualByComparingTo("175.00");
-        assertThat(metrics.getMinPrice()).isEqualByComparingTo("50.00");
-        assertThat(metrics.getMaxPrice()).isEqualByComparingTo("300.00");
-    }
-
-    @Test
-    @DisplayName("calculateMetricsAsync() - Empty product list")
-    void calculateMetricsAsync_Empty() throws Exception {
-        when(productRepository.findAll()).thenReturn(Collections.emptyList());
-
-        CompletableFuture<ProductMetricsResponse> future = queryService.calculateMetricsAsync();
-        ProductMetricsResponse metrics = future.get();
-
-        assertThat(metrics).isNotNull();
-        assertThat(metrics.getTotalProducts()).isEqualTo(0);
-        assertThat(metrics.getTotalValuation()).isEqualTo(BigDecimal.ZERO);
     }
 }

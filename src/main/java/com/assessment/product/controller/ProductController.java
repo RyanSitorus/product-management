@@ -3,7 +3,6 @@ package com.assessment.product.controller;
 import com.assessment.product.dto.common.ApiResponse;
 import com.assessment.product.dto.common.ErrorResponse;
 import com.assessment.product.dto.common.PagedResponse;
-import com.assessment.product.dto.product.ProductMetricsResponse;
 import com.assessment.product.dto.product.ProductRequest;
 import com.assessment.product.dto.product.ProductResponse;
 import com.assessment.product.service.ProductService;
@@ -22,7 +21,6 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.security.Principal;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequestMapping("/api/v1/products")
@@ -116,25 +114,6 @@ public class ProductController {
         return ResponseEntity.ok(
                 ApiResponse.success("Products retrieved successfully", response)
         );
-    }
-
-    @Operation(summary = "Get product metrics", description = "Asynchronously calculates inventory metrics.")
-    @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "Product metrics calculated successfully",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "401",
-                    description = "Unauthorized",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            )
-    })
-    @GetMapping("/metrics")
-    public CompletableFuture<ResponseEntity<ApiResponse<ProductMetricsResponse>>> getMetrics() {
-        return productService.calculateMetricsAsync()
-                .thenApply(metrics -> ResponseEntity.ok(ApiResponse.success("Metrics calculated successfully", metrics)));
     }
 
     @Operation(summary = "Get product by ID", description = "Retrieves a single product by its integer ID.")

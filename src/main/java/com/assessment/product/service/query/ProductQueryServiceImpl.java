@@ -1,7 +1,6 @@
 package com.assessment.product.service.query;
 
 import com.assessment.product.dto.common.PagedResponse;
-import com.assessment.product.dto.product.ProductMetricsResponse;
 import com.assessment.product.dto.product.ProductResponse;
 import com.assessment.product.entity.Product;
 import com.assessment.product.exception.BadRequestException;
@@ -16,14 +15,11 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -82,52 +78,5 @@ public class ProductQueryServiceImpl implements ProductQueryService {
 
         Page<ProductResponse> responsePage = productPage.map(ProductResponse::fromEntity);
         return PagedResponse.fromPage(responsePage);
-    }
-
-    @Override
-    @Async("taskExecutor")
-    @Transactional(readOnly = true)
-    public CompletableFuture<ProductMetricsResponse> calculateMetricsAsync() {
-        log.info("Calculating product metrics");
-
-        List<Product> products = productRepository.findAll();
-        long count = products.size();
-
-        if (count == 0) {
-            ProductMetricsResponse emptyMetrics = ProductMetricsResponse.builder()
-                    .totalProducts(0)
-                    .averagePrice(BigDecimal.ZERO)
-                    .minPrice(BigDecimal.ZERO)
-                    .maxPrice(BigDecimal.ZERO)
-                    .totalValuation(BigDecimal.ZERO)
-                    .build();
-            return CompletableFuture.completedFuture(emptyMetrics);
-        }
-
-        BigDecimal sum = products.stream()
-                .map(Product::getPrice)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        BigDecimal min = products.stream()
-                .map(Product::getPrice)
-                .min(BigDecimal::compareTo)
-                .orElse(BigDecimal.ZERO);
-
-        BigDecimal max = products.stream()
-                .map(Product::getPrice)
-                .max(BigDecimal::compareTo)
-                .orElse(BigDecimal.ZERO);
-
-        BigDecimal avg = sum.divide(BigDecimal.valueOf(count), 2, RoundingMode.HALF_UP);
-
-        ProductMetricsResponse metrics = ProductMetricsResponse.builder()
-                .totalProducts(count)
-                .averagePrice(avg)
-                .minPrice(min)
-                .maxPrice(max)
-                .totalValuation(sum)
-                .build();
-
-        return CompletableFuture.completedFuture(metrics);
     }
 }

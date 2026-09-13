@@ -1,7 +1,6 @@
 package com.assessment.product.service;
 
 import com.assessment.product.dto.common.PagedResponse;
-import com.assessment.product.dto.product.ProductMetricsResponse;
 import com.assessment.product.dto.product.ProductRequest;
 import com.assessment.product.dto.product.ProductResponse;
 import com.assessment.product.service.command.ProductCommandService;
@@ -13,7 +12,6 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 @Service
 @RequiredArgsConstructor
@@ -71,9 +69,5 @@ public class ProductService {
 
     public void deleteProduct(int id, String initiatedBy) {
         commandService.deleteProduct(id, initiatedBy);
-    }
-
-    public CompletableFuture<ProductMetricsResponse> calculateMetricsAsync() {
-        return queryService.calculateMetricsAsync();
     }
 }
